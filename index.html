@@ -3,32 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>タイムカプセルAR - 思い出の空間再現</title>
+  <title>タイムカプセルAR - 未来への思い出記録</title>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif; }
     body, html {
       margin: 0; padding: 0; width: 100vw; height: 100vh;
-      overflow: hidden; background: #000; color: #f7f3ed; touch-action: none;
+      overflow: hidden; background: #08080a; color: #f7f3ed; touch-action: none;
     }
 
     /* 1. カメラ映像 */
     #webcam {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      object-fit: cover; z-index: 1;
+      object-fit: cover; z-index: 1; transform-origin: center center;
     }
 
-    /* 2. AR タイムカプセル 空間描画レイヤー */
+    /* 2. AR空間描画レイヤー */
     #ar-canvas {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 2; pointer-events: auto;
+      z-index: 2; touch-action: none;
     }
 
-    /* UI ヘッダー */
+    /* 上部UIコントロール */
     #top-controls {
       position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 8px; background: rgba(12, 12, 16, 0.85);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      padding: 6px 14px; border-radius: 30px; border: 1px solid rgba(228, 195, 139, 0.5);
+      padding: 6px 14px; border-radius: 30px; border: 1px solid rgba(228, 195, 139, 0.4);
       z-index: 10; box-shadow: 0 8px 30px rgba(0,0,0,0.8); align-items: center;
     }
     .control-btn {
@@ -37,52 +37,51 @@
       letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s; outline: none; white-space: nowrap;
     }
     .control-btn:active { transform: scale(0.94); background: rgba(228, 195, 139, 0.25); }
-    .control-btn.highlight { background: #e4c38b; color: #000; font-weight: bold; border-color: #fff; }
 
     #info-overlay {
       position: fixed; top: 62px; left: 50%; transform: translateX(-50%);
-      color: rgba(247, 243, 237, 0.9); font-size: 10px; letter-spacing: 0.08em;
-      z-index: 10; pointer-events: none; text-align: center; text-shadow: 0 2px 6px rgba(0,0,0,0.9);
-      background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 12px;
+      color: rgba(247, 243, 237, 0.9); font-size: 10px; letter-spacing: 0.06em;
+      z-index: 10; pointer-events: none; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+      background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 12px;
     }
     #status { font-weight: 600; color: #e4c38b; }
 
-    /* 下部入力＆操作UI */
+    /* 入力バー（メッセージ＆名前） */
     #post-meta-bar {
-      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+      position: fixed; bottom: 105px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 8px; background: rgba(12, 12, 16, 0.88); backdrop-filter: blur(16px);
       padding: 8px 14px; border-radius: 20px; border: 1px solid rgba(228, 195, 139, 0.4);
       z-index: 10; align-items: center; max-width: 92vw;
     }
-    #msg-input {
-      background: rgba(255,255,255,0.12); border: 1px solid rgba(228, 195, 139, 0.4);
-      color: #fff; padding: 6px 12px; border-radius: 12px; font-size: 12px; width: 140px; outline: none;
-    }
     #nick-input {
-      background: rgba(255,255,255,0.12); border: 1px solid rgba(228, 195, 139, 0.4);
-      color: #fff; padding: 6px 10px; border-radius: 12px; font-size: 12px; width: 80px; outline: none;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(228, 195, 139, 0.4);
+      color: #fff; padding: 6px 10px; border-radius: 12px; font-size: 11px; width: 75px; outline: none;
+    }
+    #msg-input {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(228, 195, 139, 0.4);
+      color: #fff; padding: 6px 12px; border-radius: 12px; font-size: 11px; width: 160px; outline: none;
     }
 
+    /* 下部フッター */
     #shutter-container {
       position: fixed; bottom: 20px; left: 0; width: 100%;
       display: flex; justify-content: center; align-items: center; gap: 24px; z-index: 10;
     }
     #shutter-btn {
-      width: 72px; height: 72px; border-radius: 50%;
+      width: 74px; height: 74px; border-radius: 50%;
       background: linear-gradient(135deg, #ffffff 0%, #e4c38b 50%, #b8977e 100%);
-      border: 3px solid rgba(255, 255, 255, 0.9); cursor: pointer;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.8), inset 0 2px 4px rgba(255,255,255,0.8);
-      transition: transform 0.15s ease; outline: none;
-      display: flex; justify-content: center; align-items: center; font-size: 24px;
+      border: 3.5px solid rgba(255, 255, 255, 0.95); cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 2px 6px rgba(255,255,255,0.9);
+      transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1); outline: none;
     }
-    #shutter-btn:active { transform: scale(0.92); }
+    #shutter-btn:active { transform: scale(0.9); }
 
     .icon-btn {
-      width: 48px; height: 48px; border-radius: 50%;
+      width: 46px; height: 46px; border-radius: 50%;
       background: rgba(12, 12, 16, 0.8); border: 1px solid rgba(228, 195, 139, 0.5);
       color: #e4c38b; display: flex; align-items: center; justify-content: center;
       cursor: pointer; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.6); font-size: 20px; position: relative;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-size: 18px; position: relative;
     }
     .icon-btn:active { transform: scale(0.92); }
     #badge {
@@ -90,7 +89,7 @@
       font-size: 10px; font-weight: bold; border-radius: 10px; padding: 2px 6px; display: none;
     }
 
-    /* モーダル構造 */
+    /* モーダル共通 */
     .modal {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(8, 8, 12, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
@@ -100,10 +99,10 @@
       padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
       border-bottom: 1px solid rgba(228, 195, 139, 0.2);
     }
-    .modal-title { font-size: 15px; font-weight: 600; color: #e4c38b; letter-spacing: 0.08em; }
+    .modal-title { font-size: 14px; font-weight: 600; color: #e4c38b; letter-spacing: 0.08em; }
     .close-btn { background: none; border: none; color: #f7f3ed; font-size: 22px; cursor: pointer; }
 
-    /* アルバムモーダル */
+    /* アルバム（カプセル一覧） */
     .album-grid {
       flex: 1; overflow-y: auto; padding: 16px;
       display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start;
@@ -115,86 +114,90 @@
     .album-item img { width: 100%; height: 100%; object-fit: cover; }
     .album-item .item-info {
       position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9));
-      padding: 6px 8px; font-size: 10px; display: flex; flex-direction: column;
+      padding: 6px 8px; font-size: 9.5px; display: flex; flex-direction: column; gap: 2px;
     }
-    .album-item .item-date { color: #e4c38b; font-size: 8.5px; }
+    .album-item .item-user { color: #e4c38b; font-weight: bold; }
+    .album-item .item-date { color: #aaa; font-size: 8px; }
 
     /* QRモーダル */
     .qr-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
     #qrcode { background: #fff; padding: 16px; border-radius: 16px; margin-bottom: 20px; }
 
-    /* トースト通知 & フラッシュ */
+    /* トースト通知 */
     #toast-notification {
-      position: fixed; top: 90px; left: 50%; transform: translateX(-50%) translateY(-20px);
+      position: fixed; top: 100px; left: 50%; transform: translateX(-50%) translateY(-20px);
       background: linear-gradient(135deg, #e4c38b, #b8977e); color: #000; font-weight: bold;
       padding: 10px 22px; border-radius: 25px; font-size: 12px; z-index: 200; opacity: 0;
       pointer-events: none; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       box-shadow: 0 10px 25px rgba(228,195,139,0.4);
     }
     #toast-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
     #flash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #fff; opacity: 0; pointer-events: none; z-index: 50; transition: opacity 0.15s ease-out; }
   </style>
+
+  <!-- QRコード生成ライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
-  <!-- 1. Webカメラ ＆ AR空間描画キャンバス -->
+  <!-- カメラ ＆ ARレイヤー -->
   <video id="webcam" autoplay playsinline muted></video>
   <canvas id="ar-canvas"></canvas>
 
-  <!-- 2. UIコントロール -->
+  <!-- 上部UIコントロール -->
   <div id="top-controls">
-    <button class="control-btn" onclick="clearMemories()">🗑️ 空間リセット</button>
     <button class="control-btn" onclick="switchCamera()">Cam ⟳</button>
+    <button class="control-btn" onclick="resetCapsules()">🗑️ 空間クリア</button>
   </div>
 
   <div id="info-overlay">
-    ⏳ タイムカプセルAR | <span id="status">空間思い出読み込み中...</span>
+    タイムカプセルAR | <span id="status">カメラ起動中...</span>
   </div>
 
   <div id="flash"></div>
-  <div id="toast-notification">✨ タイムカプセルが空間に保存されました！</div>
+  <div id="toast-notification">✨ 空間にタイムカプセルを刻みました！</div>
 
-  <!-- 3. 思い出投稿設定バー -->
+  <!-- 投稿メタ情報（名前 ＆ メッセージ） -->
   <div id="post-meta-bar">
     <input type="text" id="nick-input" placeholder="名前" maxlength="10" value="Guest">
-    <input type="text" id="msg-input" placeholder="メッセージを入力..." maxlength="25">
+    <input type="text" id="msg-input" placeholder="思い出のメッセージ..." maxlength="25">
   </div>
 
-  <!-- 4. 下部操作バー -->
+  <!-- 下部操作バー -->
   <div id="shutter-container">
-    <button class="icon-btn" onclick="openQRModal()" title="思い出共有QR">📱</button>
-    <button id="shutter-btn" title="カプセルを刻む">📷</button>
+    <button class="icon-btn" onclick="openQRModal()" title="共有用QR">📱</button>
+    <button id="shutter-btn" title="カプセルを刻む"></button>
     <button class="icon-btn" onclick="openAlbumModal()" title="タイムカプセル一覧">
       <span>📦</span><span id="badge">0</span>
     </button>
   </div>
 
-  <!-- 5. タイムカプセル一覧モーダル -->
+  <!-- 1. タイムカプセル一覧モーダル -->
   <div class="modal" id="album-modal">
     <div class="modal-header">
-      <div class="modal-title">📦 空間に刻まれたタイムカプセル</div>
+      <div class="modal-title">タイムカプセル一覧 (空間データ)</div>
       <button class="close-btn" onclick="closeModal('album-modal')">✕</button>
     </div>
     <div class="album-grid" id="album-grid"></div>
   </div>
 
-  <!-- 6. QRコードモーダル -->
+  <!-- 2. QRコードモーダル -->
   <div class="modal" id="qr-modal">
     <div class="modal-header">
-      <div class="modal-title">同じ場所で思い出を再現</div>
+      <div class="modal-title">同じ場所でQRを読み込む</div>
       <button class="close-btn" onclick="closeModal('qr-modal')">✕</button>
     </div>
     <div class="qr-container">
       <div id="qrcode"></div>
-      <div style="font-size: 12px; color: #ccc; line-height: 1.6; max-width: 290px;">
-        後日この場所を訪れた際、このQRコードを読み込むと、保存された写真やメッセージが空間上にタイムカプセルとして浮かび上がります。
+      <div style="font-size: 12px; color: #ccc; line-height: 1.6; max-width: 280px;">
+        数年後や記念日に同じ場所でこのQRコードを読み込むと、保存された写真やメッセージが空間に浮かび上がります。
       </div>
     </div>
   </div>
 
   <script>
-    // --- 定数・変数定義 ---
+    // 定数・状態変数
     const webcamEl = document.getElementById('webcam');
     const statusEl = document.getElementById('status');
     const arCanvas = document.getElementById('ar-canvas');
@@ -204,24 +207,13 @@
     const flashEl = document.getElementById('flash');
     const toastEl = document.getElementById('toast-notification');
 
+    // ローカルストレージを使用したタイムカプセルデータの保存・読み込み
+    let capsuleList = JSON.parse(localStorage.getItem('time_capsule_ar_data') || '[]');
+
+    // カメラ切り替え設定
     let useFrontCamera = false;
     let currentStream = null;
-    let capsuleList = JSON.parse(localStorage.getItem('time_capsule_ar_data') || '[]');
-    let dpr = window.devicePixelRatio || 1;
 
-    // --- リアルタイム同調（BroadcastChannel） ---
-    const broadcastChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('time_capsule_sync') : null;
-    if (broadcastChannel) {
-      broadcastChannel.onmessage = (e) => {
-        if (e.data && e.data.type === 'NEW_CAPSULE') {
-          capsuleList.unshift(e.data.capsule);
-          updateAlbumView();
-          showToastNotification(`✨ 新しいタイムカプセルが届きました！`);
-        }
-      };
-    }
-
-    // --- 1. カメラ初期化 ---
     async function initCamera() {
       if (currentStream) currentStream.getTracks().forEach(t => t.stop());
       try {
@@ -238,17 +230,62 @@
           webcamEl.srcObject = currentStream;
           webcamEl.onloadedmetadata = () => { updateStatusText(); };
         } catch (e) {
-          statusEl.textContent = "カメラの起動に失敗しました";
+          statusEl.textContent = "カメラ接続エラー";
         }
       }
     }
 
-    function switchCamera() { useFrontCamera = !useFrontCamera; initCamera(); }
-    function updateStatusText() {
-      statusEl.textContent = `カプセル数: ${capsuleList.length} 件`;
+    function switchCamera() {
+      useFrontCamera = !useFrontCamera;
+      initCamera();
     }
 
-    // --- 2. タイムカプセルARのレンダリング（空間浮遊アニメーション） ---
+    function updateStatusText() {
+      const mode = useFrontCamera ? "FRONT" : "BACK";
+      statusEl.textContent = `${mode} CAM | 保存カプセル: ${capsuleList.length}件`;
+    }
+
+    // タッチ・ピンチズーム・移動コントロール用変数
+    let globalScale = 1.0;
+    let offsetX = 0;
+    let offsetY = 0;
+    let initialDistance = null;
+    let initialScale = 1.0;
+    let startX = 0, startY = 0;
+    let isDragging = false;
+
+    arCanvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX - offsetX;
+        startY = e.touches[0].clientY - offsetY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        initialScale = globalScale;
+      }
+    }, { passive: false });
+
+    arCanvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1 && isDragging) {
+        offsetX = e.touches[0].clientX - startX;
+        offsetY = e.touches[0].clientY - startY;
+      } else if (e.touches.length === 2 && initialDistance > 0) {
+        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        globalScale = Math.max(0.5, Math.min(3.0, initialScale * (dist / initialDistance)));
+      }
+    }, { passive: false });
+
+    arCanvas.addEventListener('touchend', (e) => {
+      if (e.touches.length === 0) {
+        isDragging = false;
+        initialDistance = null;
+      }
+    });
+
+    // AR Canvasの解像度調整
+    let dpr = window.devicePixelRatio || 1;
     function resizeCanvas() {
       dpr = window.devicePixelRatio || 1;
       arCanvas.width = window.innerWidth * dpr;
@@ -260,17 +297,17 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // 読み込んだ写真をイメージオブジェクトとしてキャッシュ
+    // 画像キャッシュ用
     const imageCache = {};
 
+    // AR空間への思い出再出現ループ描画
+    let timeCount = 0;
     function renderLoop() {
+      timeCount += 0.02;
       const w = window.innerWidth;
       const h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
 
-      const now = Date.now();
-
-      // 各カプセルをふわふわと空間に浮遊表示
       capsuleList.forEach((capsule, index) => {
         if (!imageCache[capsule.id]) {
           const img = new Image();
@@ -281,41 +318,41 @@
         const cachedImg = imageCache[capsule.id];
         if (!cachedImg || !cachedImg.complete) return;
 
-        // 個別の浮遊計算 (サイン波)
-        const floatY = Math.sin((now / 1000) + index) * 12;
-        const floatX = Math.cos((now / 1500) + index) * 8;
+        // 空間にふわふわと浮かび上がるアニメーション計算
+        const floatY = Math.sin(timeCount + index) * 10;
+        const floatX = Math.cos(timeCount * 0.7 + index) * 6;
 
-        const x = capsule.x * w + floatX;
-        const y = capsule.y * h + floatY;
-        const size = capsule.scale * Math.min(w, h);
+        const x = (capsule.x * w) + offsetX + floatX;
+        const y = (capsule.y * h) + offsetY + floatY;
+        const baseSize = Math.min(w, h) * 0.28 * capsule.scale * globalScale;
 
         ctx.save();
         ctx.translate(x, y);
 
         // タイムカプセル風ポラロイド額縁の描画
         const pad = 8;
-        const bottomPad = 32;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
-        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-        ctx.shadowBlur = 15;
+        const bottomPad = 30;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+        ctx.shadowBlur = 18;
         ctx.shadowOffsetY = 6;
 
         ctx.beginPath();
-        ctx.roundRect(-size/2 - pad, -size/2 - pad, size + pad*2, size + pad + bottomPad, 10);
+        ctx.roundRect(-baseSize/2 - pad, -baseSize/2 - pad, baseSize + pad*2, baseSize + pad + bottomPad, 10);
         ctx.fill();
 
         // 写真の描画
-        ctx.drawImage(cachedImg, -size/2, -size/2, size, size);
+        ctx.drawImage(cachedImg, -baseSize/2, -baseSize/2, baseSize, baseSize);
 
-        // ユーザー名 & メッセージ & 日時のテキスト描画
+        // メッセージとユーザー情報の描画
         ctx.fillStyle = "#111";
         ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText(`${capsule.user}: ${capsule.msg}`, -size/2, size/2 + 14);
+        ctx.fillText(`${capsule.user}: ${capsule.msg}`, -baseSize/2, baseSize/2 + 13);
 
-        ctx.fillStyle = "#777";
+        ctx.fillStyle = "#666";
         ctx.font = "8px sans-serif";
-        ctx.fillText(capsule.date, -size/2, size/2 + 25);
+        ctx.fillText(capsule.date, -baseSize/2, baseSize/2 + 23);
 
         ctx.restore();
       });
@@ -324,76 +361,61 @@
     }
     renderLoop();
 
-    // --- 3. 写真撮影 ＆ 空間カプセル固定処理 ---
-    shutterBtn.addEventListener('click', async () => {
+    // 撮影・タイムカプセル空間保存処理
+    shutterBtn.addEventListener('click', () => {
       flashEl.style.opacity = '0.8';
       setTimeout(() => flashEl.style.opacity = '0', 150);
 
-      // キャプチャ用キャンバス作成
       const saveCanvas = document.createElement('canvas');
-      const lw = window.innerWidth;
-      const lh = window.innerHeight;
-      saveCanvas.width = lw * dpr;
+      const lw = window.innerWidth, lh = window.innerHeight;
+      saveCanvas.width = lw * dpr; 
       saveCanvas.height = lh * dpr;
       const sCtx = saveCanvas.getContext('2d');
       sCtx.scale(dpr, dpr);
 
       // 背景カメラ描画
       if (webcamEl.readyState === webcamEl.HAVE_ENOUGH_DATA) {
-        const vR = webcamEl.videoWidth / webcamEl.videoHeight;
-        const cR = lw / lh;
+        const vR = webcamEl.videoWidth / webcamEl.videoHeight, cR = lw / lh;
         let dw = lw, dh = lh, dx = 0, dy = 0;
         if (vR > cR) { dw = lh * vR; dx = (lw - dw) / 2; } else { dh = lw / vR; dy = (lh - dh) / 2; }
         sCtx.drawImage(webcamEl, dx, dy, dw, dh);
       }
 
-      const capturedDataUrl = saveCanvas.toDataURL('image/jpeg', 0.85);
-
-      // タイムカプセルオブジェクト作成 (画面中央付近に配置)
+      const capturedDataUrl = saveCanvas.toDataURL('image/jpeg', 0.88);
       const user = document.getElementById('nick-input').value.trim() || 'Guest';
-      const msg = document.getElementById('msg-input').value.trim() || '思い出を記録しました✨';
+      const msg = document.getElementById('msg-input').value.trim() || '思い出のタイムカプセル';
       const dateStr = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
 
-      // ランダムに少し位置をずらして立体感を演出
+      // 新規タイムカプセルオブジェクト作成（画面中央付近にランダム配置）
       const newCapsule = {
         id: Date.now(),
         dataUrl: capturedDataUrl,
         user: user,
         msg: msg,
         date: dateStr,
-        x: 0.3 + Math.random() * 0.4, // 画面中央付近 (0.3〜0.7)
-        y: 0.3 + Math.random() * 0.3, // 画面中央付近 (0.3〜0.6)
-        scale: 0.3 + Math.random() * 0.1
+        x: 0.35 + Math.random() * 0.3,
+        y: 0.35 + Math.random() * 0.3,
+        scale: 1.0
       };
 
       capsuleList.unshift(newCapsule);
       if (capsuleList.length > 30) capsuleList.pop(); // 最大30件保持
 
-      try { localStorage.setItem('time_capsule_ar_data', JSON.stringify(capsuleList)); } catch(e){}
+      try {
+        localStorage.setItem('time_capsule_ar_data', JSON.stringify(capsuleList));
+      } catch(e){}
 
       updateAlbumView();
       updateStatusText();
-      showToastNotification("✨ 空間にタイムカプセルを刻みました！");
-
-      if (broadcastChannel) {
-        broadcastChannel.postMessage({ type: 'NEW_CAPSULE', capsule: newCapsule });
-      }
-
-      // メッセージ入力をクリア
+      showToastNotification("✨ 空間に思い出を刻みました！");
       document.getElementById('msg-input').value = '';
     });
 
-    // --- 4. モーダル & UI補助処理 ---
-    function showToastNotification(msg) {
-      toastEl.textContent = msg;
-      toastEl.classList.add('show');
-      setTimeout(() => toastEl.classList.remove('show'), 3000);
-    }
-
+    // モーダル・アルバム操作
     function updateAlbumView() {
       const grid = document.getElementById('album-grid');
       if (capsuleList.length === 0) {
-        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#777; font-size:12px; margin-top:50px;">タイムカプセルがまだありません</div>';
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#777; font-size:12px; margin-top:50px;">タイムカプセルはありません</div>';
         badgeEl.style.display = 'none';
         return;
       }
@@ -402,28 +424,34 @@
 
       grid.innerHTML = capsuleList.map(p => `
         <div class="album-item">
-          <img src="${p.dataUrl}" alt="Photo">
+          <img src="${p.dataUrl}" alt="Memory">
           <div class="item-info">
-            <span style="font-weight:bold; color:#fff;">${p.user}</span>
-            <span style="color:#ddd; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${p.msg}</span>
+            <span class="item-user">${p.user}</span>
+            <span style="color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.msg}</span>
             <span class="item-date">${p.date}</span>
           </div>
         </div>
       `).join('');
     }
 
-    function clearMemories() {
-      if (confirm("この場所に残されたタイムカプセルを全て消去しますか？")) {
+    function resetCapsules() {
+      if (confirm("この空間のタイムカプセルをすべてリセットしますか？")) {
         capsuleList = [];
         localStorage.removeItem('time_capsule_ar_data');
         updateAlbumView();
         updateStatusText();
-        showToastNotification("空間のタイムカプセルを初期化しました");
+        showToastNotification("空間を初期化しました");
       }
     }
 
-    function openAlbumModal() { updateAlbumView(); document.getElementById('album-modal').style.display = 'flex'; }
-    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openAlbumModal() {
+      updateAlbumView();
+      document.getElementById('album-modal').style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
 
     let qrGenerated = false;
     function openQRModal() {
@@ -432,6 +460,12 @@
         new QRCode(document.getElementById('qrcode'), { text: window.location.href, width: 170, height: 170 });
         qrGenerated = true;
       }
+    }
+
+    function showToastNotification(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      setTimeout(() => toastEl.classList.remove('show'), 3000);
     }
 
     // 初期化実行

@@ -219,7 +219,7 @@
     const MIN_ZOOM = 1.0;
     const MAX_ZOOM = 5.0;
 
-    // --- タッチパン（ドラッグ移動）変数 ---
+    // --- タッチパン（ドラッグ移動）＆ピンチズーム変数 ---
     let panX = 0, panY = 0;
     let startX = 0, startY = 0;
     let isDragging = false;
@@ -264,7 +264,7 @@
       statusEl.textContent = `${mode} | ズーム: ${currentZoom.toFixed(1)}x | カプセル: ${capsuleList.length}件`;
     }
 
-    // --- 2. タッチ＆スライド／ピンチズーム操作 ---
+    // --- 2. タッチ＆スライド／ピンチイン・ピンチアウト操作 ---
     function updateTransform() {
       const transformStr = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
       webcamEl.style.transform = transformStr;
@@ -340,7 +340,7 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // --- 4. タイムカプセルARのレンダリングループ（ふわふわ浮遊） ---
+    // --- 4. タイムカプセルARのレンダリングループ（空間浮遊アニメーション） ---
     const imageCache = {};
     let timeCount = 0;
 
@@ -360,7 +360,7 @@
         const cachedImg = imageCache[capsule.id];
         if (!cachedImg || !cachedImg.complete) return;
 
-        // ふわふわ浮かび上がるアニメーション計算
+        // ふわふわと浮かび上がる揺れ計算
         const floatY = Math.sin(timeCount + index) * 10;
         const floatX = Math.cos(timeCount * 0.7 + index) * 6;
 
@@ -371,7 +371,7 @@
         ctx.save();
         ctx.translate(x, y);
 
-        // タイムカプセルポラロイド額縁
+        // タイムカプセル風ポラロイド額縁
         const pad = 8;
         const bottomPad = 30;
         ctx.fillStyle = "rgba(255, 255, 255, 0.94)";

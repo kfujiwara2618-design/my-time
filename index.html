@@ -12,15 +12,23 @@
     }
 
     /* 1. カメラ映像 */
-    #webcam {
+    #webcam-container {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      object-fit: cover; z-index: 1; transform-origin: center center;
+      overflow: hidden; z-index: 1;
+    }
+    #webcam {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      min-width: 100vw; min-height: 100vh; width: auto; height: auto;
+      object-fit: cover;
     }
 
-    /* 2. AR空間描画レイヤー */
-    #ar-canvas {
+    /* 2. AR空間・ピンチズーム対象レイヤー */
+    #ar-viewport {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 2; touch-action: none;
+      z-index: 2; touch-action: none; transform-origin: center center;
+    }
+    #ar-canvas {
+      position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none;
     }
 
     /* 上部UIコントロール */
@@ -46,7 +54,7 @@
     }
     #status { font-weight: 600; color: #e4c38b; }
 
-    /* 入力バー（メッセージ＆名前） */
+    /* 入力バー（名前 ＆ メッセージ） */
     #post-meta-bar {
       position: fixed; bottom: 105px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 8px; background: rgba(12, 12, 16, 0.88); backdrop-filter: blur(16px);
@@ -141,13 +149,20 @@
 </head>
 <body>
 
-  <!-- カメラ ＆ ARレイヤー -->
-  <video id="webcam" autoplay playsinline muted></video>
-  <canvas id="ar-canvas"></canvas>
+  <!-- カメラ映像 -->
+  <div id="webcam-container">
+    <video id="webcam" autoplay playsinline muted></video>
+  </div>
+
+  <!-- AR空間（ピンチズーム・ドラッグ対象） -->
+  <div id="ar-viewport">
+    <canvas id="ar-canvas"></canvas>
+  </div>
 
   <!-- 上部UIコントロール -->
   <div id="top-controls">
     <button class="control-btn" onclick="switchCamera()">Cam ⟳</button>
+    <button class="control-btn" onclick="resetView()">ズームリセット</button>
     <button class="control-btn" onclick="resetCapsules()">🗑️ 空間クリア</button>
   </div>
 
@@ -200,6 +215,7 @@
     // 定数・状態変数
     const webcamEl = document.getElementById('webcam');
     const statusEl = document.getElementById('status');
+    const arViewport = document.getElementById('ar-viewport');
     const arCanvas = document.getElementById('ar-canvas');
     const ctx = arCanvas.getContext('2d');
     const shutterBtn = document.getElementById('shutter-btn');
@@ -207,10 +223,9 @@
     const flashEl = document.getElementById('flash');
     const toastEl = document.getElementById('toast-notification');
 
-    // ローカルストレージを使用したタイムカプセルデータの保存・読み込み
     let capsuleList = JSON.parse(localStorage.getItem('time_capsule_ar_data') || '[]');
 
-    // カメラ切り替え設定
+    // カメラ設定（高解像度対応・背面カメラ優先）
     let useFrontCamera = false;
     let currentStream = null;
 
@@ -218,7 +233,11 @@
       if (currentStream) currentStream.getTracks().forEach(t => t.stop());
       try {
         const constraints = {
-          video: { facingMode: useFrontCamera ? "user" : { exact: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          video: { 
+            facingMode: useFrontCamera ? "user" : { exact: "environment" }, 
+            width: { ideal: 1920 }, 
+            height: { ideal: 1080 } 
+          },
           audio: false
         };
         currentStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -226,6 +245,7 @@
         webcamEl.onloadedmetadata = () => { updateStatusText(); };
       } catch (err) {
         try {
+          // フォールバック（通常カメラ）
           currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
           webcamEl.srcObject = currentStream;
           webcamEl.onloadedmetadata = () => { updateStatusText(); };
@@ -245,46 +265,65 @@
       statusEl.textContent = `${mode} CAM | 保存カプセル: ${capsuleList.length}件`;
     }
 
-    // タッチ・ピンチズーム・移動コントロール用変数
-    let globalScale = 1.0;
-    let offsetX = 0;
-    let offsetY = 0;
+    // --- タッチ＆ピンチズーム・パン機能 ---
+    let scale = 1.0;
+    let panX = 0;
+    let panY = 0;
+    let startX = 0, startY = 0;
     let initialDistance = null;
     let initialScale = 1.0;
-    let startX = 0, startY = 0;
     let isDragging = false;
 
-    arCanvas.addEventListener('touchstart', (e) => {
+    window.addEventListener('touchstart', (e) => {
+      // UI要素のタッチは除外
+      if (e.target.closest('#top-controls') || e.target.closest('#shutter-container') || e.target.closest('#post-meta-bar') || e.target.closest('.modal')) {
+        return;
+      }
       if (e.touches.length === 1) {
         isDragging = true;
-        startX = e.touches[0].clientX - offsetX;
-        startY = e.touches[0].clientY - offsetY;
+        startX = e.touches[0].clientX - panX;
+        startY = e.touches[0].clientY - panY;
       } else if (e.touches.length === 2) {
         isDragging = false;
         initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        initialScale = globalScale;
+        initialScale = scale;
       }
     }, { passive: false });
 
-    arCanvas.addEventListener('touchmove', (e) => {
+    window.addEventListener('touchmove', (e) => {
+      if (e.target.closest('.modal') || e.target.closest('#album-grid')) return;
       e.preventDefault();
+
       if (e.touches.length === 1 && isDragging) {
-        offsetX = e.touches[0].clientX - startX;
-        offsetY = e.touches[0].clientY - startY;
+        panX = e.touches[0].clientX - startX;
+        panY = e.touches[0].clientY - startY;
+        updateViewportTransform();
       } else if (e.touches.length === 2 && initialDistance > 0) {
         const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        globalScale = Math.max(0.5, Math.min(3.0, initialScale * (dist / initialDistance)));
+        scale = Math.max(0.5, Math.min(4.0, initialScale * (dist / initialDistance)));
+        updateViewportTransform();
       }
     }, { passive: false });
 
-    arCanvas.addEventListener('touchend', (e) => {
+    window.addEventListener('touchend', (e) => {
       if (e.touches.length === 0) {
         isDragging = false;
         initialDistance = null;
       }
     });
 
-    // AR Canvasの解像度調整
+    function updateViewportTransform() {
+      arViewport.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    }
+
+    function resetView() {
+      scale = 1.0;
+      panX = 0;
+      panY = 0;
+      updateViewportTransform();
+    }
+
+    // AR Canvasの解像度設定
     let dpr = window.devicePixelRatio || 1;
     function resizeCanvas() {
       dpr = window.devicePixelRatio || 1;
@@ -297,10 +336,10 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // 画像キャッシュ用
+    // 画像キャッシュ
     const imageCache = {};
 
-    // AR空間への思い出再出現ループ描画
+    // AR空間に思い出をふわふわ再出現させるアニメーションループ
     let timeCount = 0;
     function renderLoop() {
       timeCount += 0.02;
@@ -318,13 +357,13 @@
         const cachedImg = imageCache[capsule.id];
         if (!cachedImg || !cachedImg.complete) return;
 
-        // 空間にふわふわと浮かび上がるアニメーション計算
-        const floatY = Math.sin(timeCount + index) * 10;
-        const floatX = Math.cos(timeCount * 0.7 + index) * 6;
+        // ふわふわと浮かび上がる上下・左右の揺れ計算
+        const floatY = Math.sin(timeCount + index) * 8;
+        const floatX = Math.cos(timeCount * 0.7 + index) * 5;
 
-        const x = (capsule.x * w) + offsetX + floatX;
-        const y = (capsule.y * h) + offsetY + floatY;
-        const baseSize = Math.min(w, h) * 0.28 * capsule.scale * globalScale;
+        const x = (capsule.x * w) + floatX;
+        const y = (capsule.y * h) + floatY;
+        const baseSize = Math.min(w, h) * 0.28 * capsule.scale;
 
         ctx.save();
         ctx.translate(x, y);
@@ -341,10 +380,10 @@
         ctx.roundRect(-baseSize/2 - pad, -baseSize/2 - pad, baseSize + pad*2, baseSize + pad + bottomPad, 10);
         ctx.fill();
 
-        // 写真の描画
+        // 写真描画
         ctx.drawImage(cachedImg, -baseSize/2, -baseSize/2, baseSize, baseSize);
 
-        // メッセージとユーザー情報の描画
+        // メッセージとユーザー情報
         ctx.fillStyle = "#111";
         ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "left";
@@ -361,7 +400,7 @@
     }
     renderLoop();
 
-    // 撮影・タイムカプセル空間保存処理
+    // 写真撮影・空間へのタイムカプセル保存処理
     shutterBtn.addEventListener('click', () => {
       flashEl.style.opacity = '0.8';
       setTimeout(() => flashEl.style.opacity = '0', 150);
@@ -373,7 +412,7 @@
       const sCtx = saveCanvas.getContext('2d');
       sCtx.scale(dpr, dpr);
 
-      // 背景カメラ描画
+      // カメラ映像の背景描画
       if (webcamEl.readyState === webcamEl.HAVE_ENOUGH_DATA) {
         const vR = webcamEl.videoWidth / webcamEl.videoHeight, cR = lw / lh;
         let dw = lw, dh = lh, dx = 0, dy = 0;
@@ -386,7 +425,7 @@
       const msg = document.getElementById('msg-input').value.trim() || '思い出のタイムカプセル';
       const dateStr = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
 
-      // 新規タイムカプセルオブジェクト作成（画面中央付近にランダム配置）
+      // 新規タイムカプセル（画面中央付近にランダム配置）
       const newCapsule = {
         id: Date.now(),
         dataUrl: capturedDataUrl,

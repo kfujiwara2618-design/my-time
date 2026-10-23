@@ -26,6 +26,11 @@
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
     }
 
+    /* UI全体を隠すためのコンテナクラス */
+    .hide-ui .ui-element {
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    }
+
     /* 上部UIコントロール */
     #top-controls {
       position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
@@ -33,6 +38,7 @@
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       padding: 6px 12px; border-radius: 25px; border: 1px solid rgba(228, 195, 139, 0.4);
       z-index: 10; box-shadow: 0 8px 25px rgba(0,0,0,0.6); align-items: center;
+      transition: opacity 0.3s ease;
     }
     .control-btn {
       background: transparent; border: 1px solid rgba(228, 195, 139, 0.5);
@@ -45,6 +51,7 @@
       position: absolute; top: 65px; left: 50%; transform: translateX(-50%);
       color: rgba(247, 243, 237, 0.85); font-size: 9.5px; letter-spacing: 0.08em;
       z-index: 10; pointer-events: none; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8); white-space: nowrap;
+      transition: opacity 0.3s ease;
     }
     #status { font-weight: 500; color: #e4c38b; }
 
@@ -54,6 +61,7 @@
       display: flex; gap: 8px; background: rgba(15, 15, 15, 0.85); backdrop-filter: blur(16px);
       padding: 8px 14px; border-radius: 20px; border: 1px solid rgba(228, 195, 139, 0.4);
       z-index: 10; align-items: center; max-width: 92vw;
+      transition: opacity 0.3s ease;
     }
     #nick-input {
       background: rgba(255,255,255,0.1); border: 1px solid rgba(228, 195, 139, 0.4);
@@ -68,6 +76,7 @@
     #shutter-container {
       position: absolute; bottom: 25px; left: 0; width: 100%;
       display: flex; justify-content: center; align-items: center; gap: 24px; z-index: 10;
+      transition: opacity 0.3s ease;
     }
     #shutter-btn {
       width: 76px; height: 76px; border-radius: 50%;
@@ -90,6 +99,15 @@
       position: absolute; top: -4px; right: -4px; background: #e4c38b; color: #000;
       font-size: 10px; font-weight: bold; border-radius: 10px; padding: 2px 6px; display: none;
     }
+
+    /* UI再表示用のフロートボタン（UI非表示時に画面隅にうっすら表示） */
+    #restore-ui-btn {
+      position: fixed; top: 15px; right: 15px; z-index: 15;
+      background: rgba(15, 15, 15, 0.6); border: 1px solid rgba(228, 195, 139, 0.5);
+      color: #e4c38b; padding: 6px 12px; border-radius: 20px; font-size: 10px;
+      cursor: pointer; display: none; backdrop-filter: blur(10px);
+    }
+    body.hide-ui #restore-ui-btn { display: block; }
 
     /* モーダル構造 */
     .modal {
@@ -146,14 +164,18 @@
     <canvas id="ar-canvas"></canvas>
   </div>
 
+  <!-- UI非表示時の復帰ボタン -->
+  <button id="restore-ui-btn" onclick="toggleUI()">👁️ UI表示</button>
+
   <!-- 上部UIコントロール -->
-  <div id="top-controls">
+  <div id="top-controls" class="ui-element">
     <button class="control-btn" onclick="switchCamera()">Cam ⟳</button>
     <button class="control-btn" onclick="resetZoom()">1.0x リセット</button>
+    <button class="control-btn" onclick="toggleUI()">画面スッキリ(非表示)</button>
     <button class="control-btn" onclick="resetCapsules()">🗑️ 空間クリア</button>
   </div>
 
-  <div id="info-overlay">
+  <div id="info-overlay" class="ui-element">
     TIME CAPSULE AR | <span id="status">INITIALIZING...</span>
   </div>
 
@@ -161,13 +183,13 @@
   <div id="toast-notification">✨ 空間にタイムカプセルを保存しました！</div>
 
   <!-- 投稿メッセージ入力 -->
-  <div id="post-meta-bar">
+  <div id="post-meta-bar" class="ui-element">
     <input type="text" id="nick-input" placeholder="名前" maxlength="10" value="Guest">
     <input type="text" id="msg-input" placeholder="思い出のメッセージ..." maxlength="25">
   </div>
 
   <!-- 下部操作バー -->
-  <div id="shutter-container">
+  <div id="shutter-container" class="ui-element">
     <button class="icon-btn" onclick="openQRModal()" title="共有用QR">📱</button>
     <button id="shutter-btn" title="Capture"></button>
     <button class="icon-btn" onclick="openAlbumModal()" title="タイムカプセル一覧">
@@ -225,6 +247,11 @@
     let isDragging = false;
     let initialPinchDistance = null;
     let zoomStartValue = 1.0;
+
+    // --- UI表示/非表示切り替え機能 ---
+    function toggleUI() {
+      document.body.classList.toggle('hide-ui');
+    }
 
     // --- 1. 高画質カメラ制御 ---
     async function initCamera() {
@@ -286,7 +313,7 @@
     }
 
     window.addEventListener('touchstart', (e) => {
-      if (e.target.closest('#top-controls') || e.target.closest('#shutter-container') || e.target.closest('#post-meta-bar') || e.target.closest('.modal')) return;
+      if (e.target.closest('#top-controls') || e.target.closest('#shutter-container') || e.target.closest('#post-meta-bar') || e.target.closest('.modal') || e.target.closest('#restore-ui-btn')) return;
 
       if (e.touches.length === 1) {
         isDragging = true;
